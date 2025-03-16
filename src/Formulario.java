@@ -9,11 +9,21 @@ public class Formulario extends JFrame {
     private JTextArea txtResultados;
     private Connection conn;
     
+    
     public Formulario() {
         setTitle("Gestión de Clientes");
         setSize(600, 400);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // Permitir cerrar ventanas individualmente
         setLayout(new FlowLayout());
+
+        // Menú para abrir nuevas ventanas
+        JMenuBar menuBar = new JMenuBar();
+        JMenu menu = new JMenu("Opciones");
+        JMenuItem nuevaVentana = new JMenuItem("Abrir Nueva Ventana");
+        nuevaVentana.addActionListener(e -> new Formulario().setVisible(true));
+        menu.add(nuevaVentana);
+        menuBar.add(menu);
+        setJMenuBar(menuBar);
 
         JLabel lblNombre = new JLabel("Nombre:");
         txtNombre = new JTextField(15);
@@ -36,6 +46,7 @@ public class Formulario extends JFrame {
         txtResultados.setEditable(false);
 
         // Agregar componentes
+        
         add(lblNombre); add(txtNombre);
         add(lblDepartamento); add(txtDepartamento);
         add(lblTelefono); add(txtTelefono);
@@ -44,9 +55,18 @@ public class Formulario extends JFrame {
         add(btnGuardar); add(btnMostrar);
         add(btnCommit); add(btnRollback);
         add(new JScrollPane(txtResultados));
+        JButton btnNuevaVentana = new JButton("Nueva Ventana");
+        btnNuevaVentana.addActionListener(e -> new Formulario().setVisible(true));
+        add(btnNuevaVentana);
 
         // Conectar a BD
         conn = ConexionBD.conectar();
+
+        try {
+            conn.setAutoCommit(false); // Deshabilitar auto-commit para transacciones
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
 
         // Eventos
         btnGuardar.addActionListener(e -> insertarCliente());
@@ -58,44 +78,45 @@ public class Formulario extends JFrame {
     }
 
     // Método para insertar datos
- private void insertarCliente() {
-    String nivelAislamiento = cbAislamiento.getSelectedItem().toString();
-    try {
-        // Ajustar el nivel de aislamiento seleccionado
-        switch (nivelAislamiento) {
-            case "Read Uncommitted":
-                conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
-                break;
-            case "Read Committed":
-                conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-                break;
-            case "Repeatable Read":
-                conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-                break;
-            case "Serializable":
-                conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-                break;
+    private void insertarCliente() {
+        String nivelAislamiento = cbAislamiento.getSelectedItem().toString();
+        try {
+            // Ajustar el nivel de aislamiento seleccionado
+            switch (nivelAislamiento) {
+                case "Read Uncommitted":
+                    conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+                    break;
+                case "Read Committed":
+                    conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+                    break;
+                case "Repeatable Read":
+                    conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+                    break;
+                case "Serializable":
+                    conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+                    break;
+            }
+
+            // Preparar la consulta SQL para insertar el cliente
+            String sql = "INSERT INTO clientes (nombre, departamento, telefono, direccion) VALUES (?, ?, ?, ?)";
+            PreparedStatement stmt = conn.prepareStatement(sql);
+            stmt.setString(1, txtNombre.getText());
+            stmt.setString(2, txtDepartamento.getText());
+            stmt.setString(3, txtTelefono.getText());
+            stmt.setString(4, txtDireccion.getText());
+
+            // Ejecutar la inserción
+            stmt.executeUpdate();
+            stmt.close();
+
+            // Mensaje de confirmación
+            JOptionPane.showMessageDialog(this, "Cliente guardado con nivel: " + nivelAislamiento);
+
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-
-        // Preparar la consulta SQL para insertar el cliente
-        String sql = "INSERT INTO clientes (nombre, departamento, telefono, direccion) VALUES (?, ?, ?, ?)";
-        PreparedStatement stmt = conn.prepareStatement(sql);
-        stmt.setString(1, txtNombre.getText());
-        stmt.setString(2, txtDepartamento.getText());
-        stmt.setString(3, txtTelefono.getText());
-        stmt.setString(4, txtDireccion.getText());
-
-        // Ejecutar la inserción
-        stmt.executeUpdate();
-        
-        // Mensaje de confirmación
-        JOptionPane.showMessageDialog(this, "Cliente guardado con nivel: " + nivelAislamiento);
-
-    } catch (SQLException e) {
-        e.printStackTrace();
     }
-}
-
+    
     // Método para hacer COMMIT
     private void commitTransaccion() {
         try {
@@ -107,22 +128,45 @@ public class Formulario extends JFrame {
     }
 
     // Método para hacer ROLLBACK
-    private void rollbackTransaccion() {
-        try {
+   private void rollbackTransaccion() {
+    try {
+        if (conn != null) {
             conn.rollback();
-            JOptionPane.showMessageDialog(this, "Transacción revertida.");
+            JOptionPane.showMessageDialog(this, "Transacción revertida correctamente.");
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+        JOptionPane.showMessageDialog(this, "Error al hacer rollback: " + e.getMessage());
+    }
+}
+    // Método para mostrar clientes
+    private void mostrarClientes() {
+        txtResultados.setText(""); // Limpiar área de resultados
+
+        try {
+            String query = "SELECT * FROM clientes";
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(query);
+
+            StringBuilder sb = new StringBuilder();
+            while (rs.next()) {
+                sb.append("ID: ").append(rs.getInt("id"))
+                  .append(", Nombre: ").append(rs.getString("nombre"))
+                  .append(", Departamento: ").append(rs.getString("departamento"))
+                  .append(", Teléfono: ").append(rs.getString("telefono"))
+                  .append(", Dirección: ").append(rs.getString("direccion"))
+                  .append("\n");
+            }
+
+            txtResultados.setText(sb.toString());
+            rs.close();
+            stmt.close();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
-    
+
     public static void main(String[] args) {
-    for (int i = 0; i < 2; i++) { // Abre dos ventanas
-        SwingUtilities.invokeLater(() -> new Formulario().setVisible(true));
-    }
-    }
-    
-    private void mostrarClientes() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-    }
+    SwingUtilities.invokeLater(() -> new Formulario().setVisible(true));
+}
 }
