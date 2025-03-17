@@ -36,7 +36,33 @@ public class Formulario extends JFrame {
 
         JLabel lblAislamiento = new JLabel("Niveles de Aislamiento:");
         cbAislamiento = new JComboBox<>(new String[]{"Read Uncommitted", "Read Committed", "Repeatable Read", "Serializable"});
-
+        
+        // Agregar un ActionListener para cambiar el nivel de aislamiento en tiempo real
+    cbAislamiento.addActionListener(e -> {
+    String nivelAislamiento = (String) cbAislamiento.getSelectedItem();
+    try {
+        if (conn != null) { // Verificar que la conexión no sea nula
+            switch (nivelAislamiento) {
+                case "Read Uncommitted":
+                    conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+                    break;
+                case "Read Committed":
+                    conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+                    break;
+                case "Repeatable Read":
+                    conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+                    break;
+                case "Serializable":
+                    conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+                    break;
+            }
+            JOptionPane.showMessageDialog(this, "Nivel de aislamiento cambiado a: " + nivelAislamiento);
+        }
+    } catch (SQLException ex) {
+        ex.printStackTrace();
+        JOptionPane.showMessageDialog(this, "Error al cambiar nivel de aislamiento: " + ex.getMessage());
+    }
+    });
         JButton btnGuardar = new JButton("Guardar");
         JButton btnMostrar = new JButton("Mostrar");
         JButton btnCommit = new JButton("Commit");
@@ -141,30 +167,48 @@ public class Formulario extends JFrame {
 }
     // Método para mostrar clientes
     private void mostrarClientes() {
-        txtResultados.setText(""); // Limpiar área de resultados
+    txtResultados.setText(""); // Limpiar área de resultados
 
-        try {
-            String query = "SELECT * FROM clientes";
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(query);
-
-            StringBuilder sb = new StringBuilder();
-            while (rs.next()) {
-                sb.append("ID: ").append(rs.getInt("id"))
-                  .append(", Nombre: ").append(rs.getString("nombre"))
-                  .append(", Departamento: ").append(rs.getString("departamento"))
-                  .append(", Teléfono: ").append(rs.getString("telefono"))
-                  .append(", Dirección: ").append(rs.getString("direccion"))
-                  .append("\n");
-            }
-
-            txtResultados.setText(sb.toString());
-            rs.close();
-            stmt.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
+    try {
+        // Aplicar el nivel de aislamiento actual antes de ejecutar la consulta
+        String nivelAislamiento = (String) cbAislamiento.getSelectedItem();
+        switch (nivelAislamiento) {
+            case "Read Uncommitted":
+                conn.setTransactionIsolation(Connection.TRANSACTION_READ_UNCOMMITTED);
+                break;
+            case "Read Committed":
+                conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+                break;
+            case "Repeatable Read":
+                conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+                break;
+            case "Serializable":
+                conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+                break;
         }
+
+        // Ejecutar la consulta después de aplicar el nivel de aislamiento
+        String query = "SELECT * FROM clientes";
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery(query);
+
+        StringBuilder sb = new StringBuilder();
+        while (rs.next()) {
+            sb.append("ID: ").append(rs.getInt("id"))
+              .append(", Nombre: ").append(rs.getString("nombre"))
+              .append(", Departamento: ").append(rs.getString("departamento"))
+              .append(", Teléfono: ").append(rs.getString("telefono"))
+              .append(", Dirección: ").append(rs.getString("direccion"))
+              .append("\n");
+        }
+
+        txtResultados.setText(sb.toString());
+        rs.close();
+        stmt.close();
+    } catch (SQLException e) {
+        e.printStackTrace();
     }
+}
 
     public static void main(String[] args) {
     SwingUtilities.invokeLater(() -> new Formulario().setVisible(true));
