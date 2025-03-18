@@ -87,7 +87,7 @@ public class Formulario extends JFrame {
 
         // Conectar a BD
         conn = ConexionBD.conectar();
-
+        
         try {
             conn.setAutoCommit(false); // Deshabilitar auto-commit para transacciones
         } catch (SQLException e) {
